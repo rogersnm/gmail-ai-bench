@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+.DS_Store
+*.log
+
+# Secrets
+resources/client_secret.json
+.env
