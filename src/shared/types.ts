@@ -1,0 +1,61 @@
+// Shared types between main and renderer processes
+
+export interface Email {
+  id: string
+  threadId: string
+  subject: string
+  from: string
+  to: string
+  date: string
+  snippet: string
+  body?: string
+  labelIds: string[]
+}
+
+export interface SavedPrompt {
+  id: string
+  name: string
+  content: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ToolCall {
+  name: string
+  input: Record<string, unknown>
+}
+
+export interface ExecutionStep {
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'response'
+  content: string
+  toolCall?: ToolCall
+  timestamp: number
+}
+
+export interface PromptExecution {
+  id: string
+  prompt: string
+  steps: ExecutionStep[]
+  status: 'running' | 'completed' | 'error'
+  startedAt: number
+  completedAt?: number
+  error?: string
+}
+
+// IPC channel names
+export const IPC_CHANNELS = {
+  // Prompt execution
+  EXECUTE_PROMPT: 'execute-prompt',
+  EXECUTION_UPDATE: 'execution-update',
+  CANCEL_EXECUTION: 'cancel-execution',
+
+  // Saved prompts
+  GET_SAVED_PROMPTS: 'get-saved-prompts',
+  SAVE_PROMPT: 'save-prompt',
+  DELETE_PROMPT: 'delete-prompt',
+
+  // Gmail
+  GMAIL_AUTH_STATUS: 'gmail-auth-status',
+  GMAIL_LOGIN: 'gmail-login',
+  GMAIL_LOGOUT: 'gmail-logout',
+} as const
