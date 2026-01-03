@@ -6,8 +6,10 @@ interface PromptEditorProps {
   onRun: () => void
   onCancel: () => void
   onSave: (name: string) => void
+  onNewPrompt: () => void
   isRunning: boolean
   disabled: boolean
+  hasConversation: boolean
 }
 
 export function PromptEditor({
@@ -16,8 +18,10 @@ export function PromptEditor({
   onRun,
   onCancel,
   onSave,
+  onNewPrompt,
   isRunning,
   disabled,
+  hasConversation,
 }: PromptEditorProps) {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveName, setSaveName] = useState('')
@@ -48,11 +52,18 @@ export function PromptEditor({
         placeholder={
           disabled
             ? 'Connect to Gmail first to run prompts...'
-            : 'Enter your prompt here... (Cmd+Enter to run)\n\nExample: "Find all unread emails from the last week and summarize them"'
+            : hasConversation
+              ? 'Type a follow-up message... (Cmd+Enter to send)'
+              : 'Enter your prompt here... (Cmd+Enter to run)\n\nExample: "Find all unread emails from the last week and summarize them"'
         }
         disabled={disabled}
       />
       <div className="prompt-actions">
+        {hasConversation && !isRunning && (
+          <button className="btn btn-secondary" onClick={onNewPrompt}>
+            New Prompt
+          </button>
+        )}
         {isRunning ? (
           <button className="btn btn-danger" onClick={onCancel}>
             Cancel
@@ -63,16 +74,18 @@ export function PromptEditor({
             onClick={onRun}
             disabled={disabled || !value.trim()}
           >
-            Run
+            {hasConversation ? 'Send' : 'Run'}
           </button>
         )}
-        <button
-          className="btn btn-secondary"
-          onClick={() => setShowSaveDialog(true)}
-          disabled={!value.trim()}
-        >
-          Save Prompt
-        </button>
+        {!hasConversation && (
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowSaveDialog(true)}
+            disabled={!value.trim()}
+          >
+            Save Prompt
+          </button>
+        )}
       </div>
 
       {showSaveDialog && (

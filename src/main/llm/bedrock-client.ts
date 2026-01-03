@@ -70,10 +70,18 @@ When the user asks you to do something with their email:
 
 Be concise in your responses. When showing email contents, summarize unless the user asks for the full text.
 
+You also have tools to interact directly with the Gmail UI:
+- select_emails: Select emails by various criteria (all, none, read, unread, sender match, subject match, or specific indices)
+- bulk_action: Perform actions on selected emails (archive, delete, spam, not_spam, mark_read, mark_unread, star, unstar)
+- get_visible_emails: See what emails are currently displayed in the inbox
+
+For bulk actions like reporting spam: use select_emails first to select the emails, then bulk_action with the desired action.
+
 Important guidelines:
 - Always confirm before sending emails or making permanent changes
 - When searching emails, use Gmail's search syntax for precise results
-- If a task requires multiple steps, explain your plan before executing`
+- If a task requires multiple steps, explain your plan before executing
+- For spam reporting or bulk operations, prefer the UI tools (select_emails + bulk_action) over individual API calls`
 
 export async function sendMessage(
   messages: ConversationMessage[]
@@ -112,21 +120,19 @@ export async function sendMessage(
   }
 }
 
-export function createToolResultMessage(
-  toolUseId: string,
-  result: unknown,
-  isError: boolean = false
+export function createToolResultsMessage(
+  results: Array<{ toolUseId: string; result: unknown; isError: boolean }>
 ): ConversationMessage {
-  const content: ToolResultContentBlock = {
+  const content: ToolResultContentBlock[] = results.map(({ toolUseId, result, isError }) => ({
     toolResult: {
       toolUseId,
       content: [{ text: JSON.stringify(result, null, 2) }],
       status: isError ? 'error' : 'success',
     },
-  }
+  }))
 
   return {
     role: 'user',
-    content: [content as ContentBlock],
+    content: content as ContentBlock[],
   }
 }

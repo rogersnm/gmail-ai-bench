@@ -1,14 +1,26 @@
 import { BrowserView, BrowserWindow } from 'electron'
+import { join } from 'path'
 
 const GMAIL_WIDTH_RATIO = 0.65 // Gmail takes 65% of width
+
+// Module-level reference for access from other modules
+let gmailViewInstance: BrowserView | null = null
+
+export function getGmailView(): BrowserView | null {
+  return gmailViewInstance
+}
 
 export function createGmailView(parentWindow: BrowserWindow): BrowserView {
   const view = new BrowserView({
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: join(__dirname, '../preload/gmail-preload.js'),
     },
   })
+
+  // Store reference for other modules
+  gmailViewInstance = view
 
   parentWindow.addBrowserView(view)
 

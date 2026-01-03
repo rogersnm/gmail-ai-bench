@@ -1,7 +1,7 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import {
   sendMessage,
-  createToolResultMessage,
+  createToolResultsMessage,
   ConversationMessage,
   ResponseBlock,
   ToolUseBlock,
@@ -19,7 +19,12 @@ import {
   removeLabel,
   getLabels,
 } from '../gmail/gmail-client'
-import { IPC_CHANNELS, ExecutionStep } from '../../shared/types'
+import {
+  selectEmails,
+  bulkAction,
+  getVisibleEmails,
+} from '../gmail/dom-tools'
+import { IPC_CHANNELS, ExecutionStep, ConversationMessage } from '../../shared/types'
 
 let currentExecution: AbortController | null = null
 
@@ -83,6 +88,19 @@ async function executeTool(
     case 'get_labels':
       return await getLabels()
 
+    // DOM interaction tools
+    case 'select_emails':
+      return await selectEmails({
+        by: input.by as 'all' | 'none' | 'read' | 'unread' | 'sender' | 'subject' | 'index',
+        value: input.value as string | undefined,
+      })
+
+    case 'bulk_action':
+      return await bulkAction(input.action as string)
+
+    case 'get_visible_emails':
+      return await getVisibleEmails()
+
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
@@ -95,9 +113,12 @@ function sendUpdate(window: BrowserWindow, step: ExecutionStep): void {
 async function runPromptExecution(
   prompt: string,
   window: BrowserWindow,
-  abortSignal: AbortSignal
-): Promise<void> {
+  abortSignal: AbortSignal,
+  existingHistory: ConversationMessage[] = []
+): Promise<ConversationMessage[]> {
+  // Start with existing history or create new conversation
   const messages: ConversationMessage[] = [
+    ...existingHistory,
     {
       role: 'user',
       content: [{ text: prompt }],
@@ -146,10 +167,12 @@ async function runPromptExecution(
 
     // If no tool uses, we're done
     if (toolUses.length === 0 || response.stopReason === 'end_turn') {
-      break
+      return messages
     }
 
-    // Execute tools and add results
+    // Execute tools and collect results
+    const toolResults: Array<{ toolUseId: string; result: unknown; isError: boolean }> = []
+
     for (const toolUse of toolUses) {
       if (abortSignal.aborted) break
 
@@ -160,7 +183,7 @@ async function runPromptExecution(
           content: JSON.stringify(result, null, 2),
           timestamp: Date.now(),
         })
-        messages.push(createToolResultMessage(toolUse.id, result))
+        toolResults.push({ toolUseId: toolUse.id, result, isError: false })
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error'
@@ -169,38 +192,55 @@ async function runPromptExecution(
           content: `Error: ${errorMessage}`,
           timestamp: Date.now(),
         })
-        messages.push(createToolResultMessage(toolUse.id, { error: errorMessage }, true))
+        toolResults.push({ toolUseId: toolUse.id, result: { error: errorMessage }, isError: true })
       }
     }
+
+    // Add all tool results as a single user message
+    if (toolResults.length > 0) {
+      messages.push(createToolResultsMessage(toolResults))
+    }
   }
+
+  // Return messages even if aborted (for partial history)
+  return messages
 }
 
 export function setupBedrockHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle(IPC_CHANNELS.EXECUTE_PROMPT, async (event, prompt: string) => {
-    const window = BrowserWindow.fromWebContents(event.sender)
-    if (!window) {
-      throw new Error('No window found')
-    }
-
-    // Cancel any existing execution
-    if (currentExecution) {
-      currentExecution.abort()
-    }
-
-    currentExecution = new AbortController()
-
-    try {
-      await runPromptExecution(prompt, window, currentExecution.signal)
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Execution was cancelled
-        return
+  ipcMain.handle(
+    IPC_CHANNELS.EXECUTE_PROMPT,
+    async (event, prompt: string, history?: ConversationMessage[]) => {
+      const window = BrowserWindow.fromWebContents(event.sender)
+      if (!window) {
+        throw new Error('No window found')
       }
-      throw error
-    } finally {
-      currentExecution = null
+
+      // Cancel any existing execution
+      if (currentExecution) {
+        currentExecution.abort()
+      }
+
+      currentExecution = new AbortController()
+
+      try {
+        const updatedHistory = await runPromptExecution(
+          prompt,
+          window,
+          currentExecution.signal,
+          history || []
+        )
+        return updatedHistory
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          // Execution was cancelled
+          return history || []
+        }
+        throw error
+      } finally {
+        currentExecution = null
+      }
     }
-  })
+  )
 
   ipcMain.handle(IPC_CHANNELS.CANCEL_EXECUTION, async () => {
     if (currentExecution) {

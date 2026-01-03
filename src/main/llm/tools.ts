@@ -159,7 +159,7 @@ export const gmailTools: ToolDefinition[] = [
   },
   {
     name: 'add_label',
-    description: 'Add a label to an email. Use get_labels first to find available label IDs.',
+    description: 'Add a label to an email. You MUST use get_labels first to find available label IDs.',
     input_schema: {
       type: 'object',
       properties: {
@@ -196,6 +196,63 @@ export const gmailTools: ToolDefinition[] = [
   {
     name: 'get_labels',
     description: 'Get a list of all available Gmail labels (including custom labels)',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  // DOM interaction tools
+  {
+    name: 'select_emails',
+    description:
+      'Select one or more emails in the visible Gmail list by checking their checkboxes. Use this before bulk_action.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        by: {
+          type: 'string',
+          enum: ['all', 'none', 'read', 'unread', 'sender', 'subject', 'index'],
+          description:
+            'Selection method: "all" selects all visible, "none" deselects all, "read"/"unread" selects by read status, "sender"/"subject" matches partial text, "index" selects by position (0-based)',
+        },
+        value: {
+          type: 'string',
+          description:
+            'For "sender"/"subject": partial text to match. For "index": comma-separated indices (e.g., "0,2,5")',
+        },
+      },
+      required: ['by'],
+    },
+  },
+  {
+    name: 'bulk_action',
+    description:
+      'Perform an action on currently selected emails. Use select_emails first to select emails.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: [
+            'archive',
+            'delete',
+            'spam',
+            'not_spam',
+            'mark_read',
+            'mark_unread',
+            'star',
+            'unstar',
+          ],
+          description: 'The action to perform on selected emails',
+        },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'get_visible_emails',
+    description:
+      'Get information about emails currently visible in the Gmail inbox view. Returns sender, subject, snippet, and status for each email.',
     input_schema: {
       type: 'object',
       properties: {},

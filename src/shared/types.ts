@@ -25,6 +25,12 @@ export interface ToolCall {
   input: Record<string, unknown>
 }
 
+// Conversation history for multi-turn conversations
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: unknown[] // ContentBlock array from Bedrock
+}
+
 export interface ExecutionStep {
   type: 'thinking' | 'tool_call' | 'tool_result' | 'response'
   content: string
@@ -58,4 +64,12 @@ export const IPC_CHANNELS = {
   GMAIL_AUTH_STATUS: 'gmail-auth-status',
   GMAIL_LOGIN: 'gmail-login',
   GMAIL_LOGOUT: 'gmail-logout',
+
+  // Gmail DOM tools
+  GMAIL_SELECT_EMAILS: 'gmail:select-emails',
+  GMAIL_SELECT_EMAILS_RESULT: 'gmail:select-emails-result',
+  GMAIL_BULK_ACTION: 'gmail:bulk-action',
+  GMAIL_BULK_ACTION_RESULT: 'gmail:bulk-action-result',
+  GMAIL_GET_VISIBLE: 'gmail:get-visible',
+  GMAIL_GET_VISIBLE_RESULT: 'gmail:get-visible-result',
 } as const

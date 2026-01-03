@@ -3,12 +3,12 @@ import { PromptEditor } from './components/PromptEditor'
 import { ExecutionLog } from './components/ExecutionLog'
 import { SavedPrompts } from './components/SavedPrompts'
 import { usePromptExecution } from './hooks/usePromptExecution'
-import type { SavedPrompt } from '../shared/types'
+import type { SavedPrompt, ConversationMessage } from '../shared/types'
 
 declare global {
   interface Window {
     electronAPI: {
-      executePrompt: (prompt: string) => Promise<void>
+      executePrompt: (prompt: string, history?: ConversationMessage[]) => Promise<ConversationMessage[]>
       onExecutionUpdate: (callback: (step: any) => void) => () => void
       cancelExecution: () => Promise<void>
       getSavedPrompts: () => Promise<SavedPrompt[]>
@@ -27,7 +27,7 @@ export default function App() {
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const { steps, isRunning, execute, cancel, clearLog } = usePromptExecution()
+  const { steps, isRunning, hasConversation, execute, cancel, newConversation } = usePromptExecution()
 
   useEffect(() => {
     // Load saved prompts
@@ -41,8 +41,15 @@ export default function App() {
 
   const handleRun = async () => {
     if (!prompt.trim() || isRunning) return
-    clearLog()
-    await execute(prompt)
+    const promptToRun = prompt
+    setPrompt('') // Clear input for follow-up
+    await execute(promptToRun)
+  }
+
+  const handleNewPrompt = () => {
+    setPrompt('')
+    setSelectedPromptId(null)
+    newConversation()
   }
 
   const handleSave = async (name: string) => {
@@ -61,6 +68,7 @@ export default function App() {
   const handleSelectPrompt = (savedPrompt: SavedPrompt) => {
     setPrompt(savedPrompt.content)
     setSelectedPromptId(savedPrompt.id)
+    newConversation() // Start fresh when selecting a saved prompt
   }
 
   const handleLogin = async () => {
@@ -117,8 +125,10 @@ export default function App() {
             onRun={handleRun}
             onCancel={cancel}
             onSave={handleSave}
+            onNewPrompt={handleNewPrompt}
             isRunning={isRunning}
             disabled={!isAuthenticated}
+            hasConversation={hasConversation}
           />
           <ExecutionLog steps={steps} />
         </main>

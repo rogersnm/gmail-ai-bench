@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { ExecutionStep } from '../../shared/types'
+import type { ExecutionStep, ConversationMessage } from '../../shared/types'
 
 export function usePromptExecution() {
   const [steps, setSteps] = useState<ExecutionStep[]>([])
   const [isRunning, setIsRunning] = useState(false)
+  const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([])
+
+  // Track if we're in a multi-turn conversation (has history from previous turns)
+  const hasConversation = conversationHistory.length > 0
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onExecutionUpdate((step) => {
@@ -18,7 +22,8 @@ export function usePromptExecution() {
   const execute = useCallback(async (prompt: string) => {
     setIsRunning(true)
     try {
-      await window.electronAPI.executePrompt(prompt)
+      const updatedHistory = await window.electronAPI.executePrompt(prompt, conversationHistory)
+      setConversationHistory(updatedHistory)
     } catch (error) {
       setSteps((prev) => [
         ...prev,
@@ -31,7 +36,7 @@ export function usePromptExecution() {
     } finally {
       setIsRunning(false)
     }
-  }, [])
+  }, [conversationHistory])
 
   const cancel = useCallback(async () => {
     await window.electronAPI.cancelExecution()
@@ -50,5 +55,11 @@ export function usePromptExecution() {
     setSteps([])
   }, [])
 
-  return { steps, isRunning, execute, cancel, clearLog }
+  // Start a new conversation (clears history and log)
+  const newConversation = useCallback(() => {
+    setSteps([])
+    setConversationHistory([])
+  }, [])
+
+  return { steps, isRunning, hasConversation, execute, cancel, clearLog, newConversation }
 }

@@ -18,7 +18,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/preload/index.ts')
+          index: resolve(__dirname, 'src/preload/index.ts'),
+          'gmail-preload': resolve(__dirname, 'src/preload/gmail-preload.ts')
         }
       }
     }

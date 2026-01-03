@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC_CHANNELS, ExecutionStep, SavedPrompt } from '../shared/types'
+import { IPC_CHANNELS, ExecutionStep, SavedPrompt, ConversationMessage } from '../shared/types'
 
 export interface ElectronAPI {
   // Prompt execution
-  executePrompt: (prompt: string) => Promise<void>
+  executePrompt: (prompt: string, history?: ConversationMessage[]) => Promise<ConversationMessage[]>
   onExecutionUpdate: (callback: (step: ExecutionStep) => void) => () => void
   cancelExecution: () => Promise<void>
 
@@ -20,8 +20,8 @@ export interface ElectronAPI {
 
 const api: ElectronAPI = {
   // Prompt execution
-  executePrompt: (prompt: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.EXECUTE_PROMPT, prompt),
+  executePrompt: (prompt: string, history?: ConversationMessage[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.EXECUTE_PROMPT, prompt, history),
 
   onExecutionUpdate: (callback: (step: ExecutionStep) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, step: ExecutionStep) => callback(step)
