@@ -10,6 +10,7 @@ interface PromptEditorProps {
   isRunning: boolean
   disabled: boolean
   hasConversation: boolean
+  userMessageCount: number
 }
 
 export function PromptEditor({
@@ -22,6 +23,7 @@ export function PromptEditor({
   isRunning,
   disabled,
   hasConversation,
+  userMessageCount,
 }: PromptEditorProps) {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveName, setSaveName] = useState('')
@@ -52,9 +54,11 @@ export function PromptEditor({
         placeholder={
           disabled
             ? 'Connect to Gmail first to run prompts...'
-            : hasConversation
-              ? 'Type a follow-up message... (Cmd+Enter to send)'
-              : 'Enter your prompt here... (Cmd+Enter to run)\n\nExample: "Find all unread emails from the last week and summarize them"'
+            : isRunning
+              ? 'Waiting for response...'
+              : hasConversation
+                ? 'Type a follow-up message... (Cmd+Enter to send)'
+                : 'Enter your prompt here... (Cmd+Enter to run)\n\nExample: "Find all unread emails from the last week and summarize them"'
         }
         disabled={disabled}
       />
@@ -77,7 +81,7 @@ export function PromptEditor({
             {hasConversation ? 'Send' : 'Run'}
           </button>
         )}
-        {!hasConversation && (
+        {userMessageCount <= 1 && (
           <button
             className="btn btn-secondary"
             onClick={() => setShowSaveDialog(true)}

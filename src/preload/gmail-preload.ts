@@ -50,6 +50,7 @@ interface EmailInfo {
   sender: string
   subject: string
   snippet: string
+  messageCount: number
   isSelected: boolean
   isRead: boolean
   isStarred: boolean
@@ -61,6 +62,25 @@ function getEmailInfo(row: Element, index: number): EmailInfo {
   // - Star button has aria-label containing "Star" or "Starred"
   // - Sender is usually in a span with email attribute or class
   // - Subject is in a span, often the largest text element
+  // - Thread ID is in data-thread-id attribute or legacy-thread-id
+
+  // Extract thread ID from various possible locations
+  let threadId: string | null = null
+  const threadIdEl = row.querySelector('[data-thread-id]')
+  if (threadIdEl) {
+    threadId = threadIdEl.getAttribute('data-thread-id')
+  }
+  // Try legacy attribute
+  if (!threadId) {
+    const legacyEl = row.querySelector('[data-legacy-thread-id]')
+    if (legacyEl) {
+      threadId = legacyEl.getAttribute('data-legacy-thread-id')
+    }
+  }
+  // Try on the row itself
+  if (!threadId && row.hasAttribute('data-thread-id')) {
+    threadId = row.getAttribute('data-thread-id')
+  }
 
   const checkbox = row.querySelector('[role="checkbox"]')
   const isSelected = checkbox?.getAttribute('aria-checked') === 'true'
@@ -93,7 +113,18 @@ function getEmailInfo(row: Element, index: number): EmailInfo {
     snippet = snippetEl.textContent || ''
   }
 
-  return { index, sender, subject, snippet, isSelected, isRead, isStarred }
+  // Message count - shown as a number next to sender names for multi-message threads
+  // Gmail uses span.bx0 for the count (e.g., "2" for 2 messages)
+  let messageCount = 1
+  const countEl = row.querySelector('span.bx0')
+  if (countEl) {
+    const countText = countEl.textContent?.trim()
+    if (countText && /^\d+$/.test(countText)) {
+      messageCount = parseInt(countText, 10)
+    }
+  }
+
+  return { index, threadId, sender, subject, snippet, messageCount, isSelected, isRead, isStarred }
 }
 
 function clickCheckbox(row: Element): boolean {

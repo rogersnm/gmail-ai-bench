@@ -27,7 +27,7 @@ export default function App() {
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const { steps, isRunning, hasConversation, execute, cancel, newConversation } = usePromptExecution()
+  const { steps, isRunning, hasConversation, userMessageCount, execute, cancel, newConversation } = usePromptExecution()
 
   useEffect(() => {
     // Load saved prompts
@@ -129,6 +129,7 @@ export default function App() {
             isRunning={isRunning}
             disabled={!isAuthenticated}
             hasConversation={hasConversation}
+            userMessageCount={userMessageCount}
           />
           <ExecutionLog steps={steps} />
         </main>

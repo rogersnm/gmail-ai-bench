@@ -8,6 +8,7 @@ export function usePromptExecution() {
 
   // Track if we're in a multi-turn conversation (has history from previous turns)
   const hasConversation = conversationHistory.length > 0
+  const userMessageCount = conversationHistory.filter(m => m.role === 'user').length
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onExecutionUpdate((step) => {
@@ -21,6 +22,20 @@ export function usePromptExecution() {
 
   const execute = useCallback(async (prompt: string) => {
     setIsRunning(true)
+    // Add user message to conversation history immediately
+    setConversationHistory((prev) => [
+      ...prev,
+      { role: 'user', content: [{ text: prompt }] },
+    ])
+    // Add user message to the log
+    setSteps((prev) => [
+      ...prev,
+      {
+        type: 'user',
+        content: prompt,
+        timestamp: Date.now(),
+      },
+    ])
     try {
       const updatedHistory = await window.electronAPI.executePrompt(prompt, conversationHistory)
       setConversationHistory(updatedHistory)
@@ -61,5 +76,5 @@ export function usePromptExecution() {
     setConversationHistory([])
   }, [])
 
-  return { steps, isRunning, hasConversation, execute, cancel, clearLog, newConversation }
+  return { steps, isRunning, hasConversation, userMessageCount, execute, cancel, clearLog, newConversation }
 }

@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { join } from 'path'
-import { createGmailView, resizeGmailView } from './gmail-view'
+import { createGmailView, resizeGmailView, getGmailView } from './gmail-view'
 import { setupGmailHandlers } from './gmail/gmail-client'
 import { setupBedrockHandlers } from './llm/executor'
 import { setupPromptsStore } from './storage/prompts-store'
@@ -46,6 +46,61 @@ app.whenReady().then(() => {
   setupGmailHandlers(ipcMain)
   setupBedrockHandlers(ipcMain)
   setupPromptsStore(ipcMain)
+
+  // Set up application menu with Cmd+R to refresh Gmail
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Reload Gmail',
+          accelerator: 'CmdOrCtrl+R',
+          click: (): void => {
+            const gmailView = getGmailView()
+            if (gmailView) {
+              gmailView.webContents.reload()
+            }
+          },
+        },
+        { type: 'separator' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }],
+    },
+  ]
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 
   createWindow()
 

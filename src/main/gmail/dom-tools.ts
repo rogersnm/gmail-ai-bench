@@ -20,9 +20,11 @@ interface BulkActionResult {
 
 interface EmailInfo {
   index: number
+  threadId: string | null
   sender: string
   subject: string
   snippet: string
+  messageCount: number
   isSelected: boolean
   isRead: boolean
   isStarred: boolean

@@ -260,6 +260,11 @@ body {
   color: #fcd34d;
 }
 
+.log-entry-type.user {
+  background: #4c1d95;
+  color: #c4b5fd;
+}
+
 .log-entry-time {
   font-size: 11px;
   color: #666;

@@ -32,7 +32,7 @@ export interface ConversationMessage {
 }
 
 export interface ExecutionStep {
-  type: 'thinking' | 'tool_call' | 'tool_result' | 'response'
+  type: 'user' | 'thinking' | 'tool_call' | 'tool_result' | 'response'
   content: string
   toolCall?: ToolCall
   timestamp: number

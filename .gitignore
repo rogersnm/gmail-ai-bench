@@ -5,5 +5,8 @@ dist/
 *.log
 
 # Secrets
-resources/client_secret.json
+resources/**
 .env
+
+# Auto Claude data directory
+.auto-claude/
