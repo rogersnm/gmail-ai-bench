@@ -1,4 +1,5 @@
 // Tool definitions for Claude to interact with Gmail
+// Terminology: "message" = single email, "thread" = conversation with one or more messages
 
 export interface ToolDefinition {
   name: string
@@ -12,9 +13,9 @@ export interface ToolDefinition {
 
 export const gmailTools: ToolDefinition[] = [
   {
-    name: 'search_emails',
+    name: 'search_messages',
     description:
-      'Search for emails in Gmail using Gmail search syntax. Returns a list of matching emails with subject, from, date, and snippet.',
+      'Search for messages using Gmail search syntax. Returns a list of matching messages with their message_id, thread_id, subject, from, date, and snippet.',
     input_schema: {
       type: 'object',
       properties: {
@@ -25,51 +26,67 @@ export const gmailTools: ToolDefinition[] = [
         },
         max_results: {
           type: 'number',
-          description: 'Maximum number of emails to return (default: 20, max: 100)',
+          description: 'Maximum number of messages to return (default: 20, max: 100)',
         },
       },
       required: ['query'],
     },
   },
   {
-    name: 'read_email',
-    description: 'Read the full content of a specific email by its ID. Returns subject, from, to, date, and full body text.',
+    name: 'get_message',
+    description:
+      'Get the full content of a single message by its message_id. Returns subject, from, to, date, and full body text.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email to read',
+          description: 'The message_id of the message to read',
         },
       },
-      required: ['email_id'],
+      required: ['message_id'],
     },
   },
   {
-    name: 'send_email',
-    description: 'Send a new email. Use this to compose and send emails to recipients.',
+    name: 'get_thread',
+    description:
+      'Get all messages in a thread by thread_id. Use this to read an entire conversation. Returns an array of messages in chronological order.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        thread_id: {
+          type: 'string',
+          description: 'The thread_id to retrieve all messages from',
+        },
+      },
+      required: ['thread_id'],
+    },
+  },
+  {
+    name: 'send_message',
+    description: 'Send a new message to recipients.',
     input_schema: {
       type: 'object',
       properties: {
         to: {
           type: 'string',
-          description: 'Recipient email address',
+          description: 'Recipient address',
         },
         subject: {
           type: 'string',
-          description: 'Email subject line',
+          description: 'Subject line',
         },
         body: {
           type: 'string',
-          description: 'Email body text',
+          description: 'Message body text',
         },
         cc: {
           type: 'string',
-          description: 'CC recipient email address (optional)',
+          description: 'CC recipient address (optional)',
         },
         bcc: {
           type: 'string',
-          description: 'BCC recipient email address (optional)',
+          description: 'BCC recipient address (optional)',
         },
       },
       required: ['to', 'subject', 'body'],
@@ -77,120 +94,120 @@ export const gmailTools: ToolDefinition[] = [
   },
   {
     name: 'create_draft',
-    description: 'Create a draft email without sending it. The user can review and send it later.',
+    description: 'Create a draft message without sending it. The user can review and send it later.',
     input_schema: {
       type: 'object',
       properties: {
         to: {
           type: 'string',
-          description: 'Recipient email address',
+          description: 'Recipient address',
         },
         subject: {
           type: 'string',
-          description: 'Email subject line',
+          description: 'Subject line',
         },
         body: {
           type: 'string',
-          description: 'Email body text',
+          description: 'Message body text',
         },
         cc: {
           type: 'string',
-          description: 'CC recipient email address (optional)',
+          description: 'CC recipient address (optional)',
         },
       },
       required: ['to', 'subject', 'body'],
     },
   },
   {
-    name: 'archive_email',
-    description: 'Archive an email (remove from inbox but keep in All Mail)',
+    name: 'archive_message',
+    description: 'Archive a message (remove from inbox but keep in All Mail). Operates on a single message_id.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email to archive',
+          description: 'The message_id to archive',
         },
       },
-      required: ['email_id'],
+      required: ['message_id'],
     },
   },
   {
-    name: 'trash_email',
-    description: 'Move an email to trash',
+    name: 'trash_message',
+    description: 'Move a message to trash. Operates on a single message_id.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email to trash',
+          description: 'The message_id to trash',
         },
       },
-      required: ['email_id'],
+      required: ['message_id'],
     },
   },
   {
     name: 'mark_as_read',
-    description: 'Mark an email as read',
+    description: 'Mark a message as read.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email to mark as read',
+          description: 'The message_id to mark as read',
         },
       },
-      required: ['email_id'],
+      required: ['message_id'],
     },
   },
   {
     name: 'mark_as_unread',
-    description: 'Mark an email as unread',
+    description: 'Mark a message as unread.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email to mark as unread',
+          description: 'The message_id to mark as unread',
         },
       },
-      required: ['email_id'],
+      required: ['message_id'],
     },
   },
   {
     name: 'add_label',
-    description: 'Add a label to an email. You MUST use get_labels first to find available label IDs.',
+    description: 'Add a label to a message. Use get_labels first to find available label IDs.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email',
+          description: 'The message_id to add the label to',
         },
         label_id: {
           type: 'string',
-          description: 'The ID of the label to add (e.g., "STARRED", "IMPORTANT", or custom label ID)',
+          description: 'The label ID to add (e.g., "STARRED", "IMPORTANT", or custom label ID)',
         },
       },
-      required: ['email_id', 'label_id'],
+      required: ['message_id', 'label_id'],
     },
   },
   {
     name: 'remove_label',
-    description: 'Remove a label from an email',
+    description: 'Remove a label from a message.',
     input_schema: {
       type: 'object',
       properties: {
-        email_id: {
+        message_id: {
           type: 'string',
-          description: 'The ID of the email',
+          description: 'The message_id to remove the label from',
         },
         label_id: {
           type: 'string',
-          description: 'The ID of the label to remove',
+          description: 'The label ID to remove',
         },
       },
-      required: ['email_id', 'label_id'],
+      required: ['message_id', 'label_id'],
     },
   },
   {
@@ -201,11 +218,20 @@ export const gmailTools: ToolDefinition[] = [
       properties: {},
     },
   },
-  // DOM interaction tools
+  // DOM interaction tools - operate on visible threads in the Gmail UI
   {
-    name: 'select_emails',
+    name: 'get_visible_threads',
     description:
-      'Select one or more emails in the visible Gmail list by checking their checkboxes. Use this before bulk_action.',
+      'Get information about threads currently visible in the Gmail list view. Returns thread_id, sender, subject, snippet, messageCount, and read/starred status for each visible thread.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'select_threads',
+    description:
+      'Select one or more threads in the visible Gmail list by checking their checkboxes. Use this before bulk_action.',
     input_schema: {
       type: 'object',
       properties: {
@@ -227,7 +253,7 @@ export const gmailTools: ToolDefinition[] = [
   {
     name: 'bulk_action',
     description:
-      'Perform an action on currently selected emails. Use select_emails first to select emails.',
+      'Perform an action on currently selected threads. Use select_threads first to select threads.',
     input_schema: {
       type: 'object',
       properties: {
@@ -243,19 +269,10 @@ export const gmailTools: ToolDefinition[] = [
             'star',
             'unstar',
           ],
-          description: 'The action to perform on selected emails',
+          description: 'The action to perform on selected threads',
         },
       },
       required: ['action'],
-    },
-  },
-  {
-    name: 'get_visible_emails',
-    description:
-      'Get information about emails currently visible in the Gmail inbox view. Returns sender, subject, snippet, and status for each email.',
-    input_schema: {
-      type: 'object',
-      properties: {},
     },
   },
 ]

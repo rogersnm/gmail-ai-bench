@@ -222,6 +222,19 @@ export async function getLabels(): Promise<GmailLabel[]> {
   return (response.data.labels || []) as GmailLabel[]
 }
 
+export async function getThreadMessages(threadId: string): Promise<ParsedEmail[]> {
+  const client = getGmailClient()
+
+  const response = await client.users.threads.get({
+    userId: 'me',
+    id: threadId,
+    format: 'full',
+  })
+
+  const messages = response.data.messages || []
+  return messages.map((msg) => parseEmail(msg as GmailMessage))
+}
+
 // IPC handlers
 export function setupGmailHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IPC_CHANNELS.GMAIL_AUTH_STATUS, async () => {

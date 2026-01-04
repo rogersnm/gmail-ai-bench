@@ -18,6 +18,7 @@ import {
   addLabel,
   removeLabel,
   getLabels,
+  getThreadMessages,
 } from '../gmail/gmail-client'
 import {
   selectEmails,
@@ -33,16 +34,19 @@ async function executeTool(
   input: Record<string, unknown>
 ): Promise<unknown> {
   switch (name) {
-    case 'search_emails':
+    case 'search_messages':
       return await listEmails(
         input.query as string,
         (input.max_results as number) || 20
       )
 
-    case 'read_email':
-      return await getEmail(input.email_id as string)
+    case 'get_message':
+      return await getEmail(input.message_id as string)
 
-    case 'send_email':
+    case 'get_thread':
+      return await getThreadMessages(input.thread_id as string)
+
+    case 'send_message':
       const sendId = await sendEmail({
         to: input.to as string,
         subject: input.subject as string,
@@ -61,35 +65,35 @@ async function executeTool(
       })
       return { success: true, draft_id: draftId }
 
-    case 'archive_email':
-      await archiveEmail(input.email_id as string)
+    case 'archive_message':
+      await archiveEmail(input.message_id as string)
       return { success: true }
 
-    case 'trash_email':
-      await trashEmail(input.email_id as string)
+    case 'trash_message':
+      await trashEmail(input.message_id as string)
       return { success: true }
 
     case 'mark_as_read':
-      await markAsRead(input.email_id as string)
+      await markAsRead(input.message_id as string)
       return { success: true }
 
     case 'mark_as_unread':
-      await markAsUnread(input.email_id as string)
+      await markAsUnread(input.message_id as string)
       return { success: true }
 
     case 'add_label':
-      await addLabel(input.email_id as string, input.label_id as string)
+      await addLabel(input.message_id as string, input.label_id as string)
       return { success: true }
 
     case 'remove_label':
-      await removeLabel(input.email_id as string, input.label_id as string)
+      await removeLabel(input.message_id as string, input.label_id as string)
       return { success: true }
 
     case 'get_labels':
       return await getLabels()
 
     // DOM interaction tools
-    case 'select_emails':
+    case 'select_threads':
       return await selectEmails({
         by: input.by as 'all' | 'none' | 'read' | 'unread' | 'sender' | 'subject' | 'index',
         value: input.value as string | undefined,
@@ -98,7 +102,7 @@ async function executeTool(
     case 'bulk_action':
       return await bulkAction(input.action as string)
 
-    case 'get_visible_emails':
+    case 'get_visible_threads':
       return await getVisibleEmails()
 
     default:
