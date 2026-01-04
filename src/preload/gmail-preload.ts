@@ -81,11 +81,12 @@ function getEmailInfo(row: Element, index: number): EmailInfo {
   if (!threadId && row.hasAttribute('data-thread-id')) {
     threadId = row.getAttribute('data-thread-id')
   }
-  // Clean up thread ID - strip "#thread-f:" or "#thread-a:" prefix
+  // Clean up thread ID - strip "#thread-f:" or "#thread-a:" prefix and convert to hex
   if (threadId) {
     const match = threadId.match(/#thread-[a-z]:(\d+)/)
     if (match) {
-      threadId = match[1]
+      // DOM uses decimal, but Gmail API expects hex
+      threadId = BigInt(match[1]).toString(16)
     }
   }
 
