@@ -24,6 +24,7 @@ import {
   selectEmails,
   bulkAction,
   getVisibleEmails,
+  getOpenEmail,
 } from '../gmail/dom-tools'
 import { IPC_CHANNELS, ExecutionStep, ConversationMessage } from '../../shared/types'
 
@@ -104,6 +105,9 @@ async function executeTool(
 
     case 'get_visible_threads':
       return await getVisibleEmails()
+
+    case 'get_open_email':
+      return await getOpenEmail()
 
     default:
       throw new Error(`Unknown tool: ${name}`)

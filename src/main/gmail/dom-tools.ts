@@ -36,6 +36,24 @@ interface GetVisibleResult {
   error?: string
 }
 
+interface OpenEmailInfo {
+  threadId: string | null
+  messageId: string | null
+  subject: string
+  from: string
+  to: string
+  cc: string
+  date: string
+  body: string
+  isExpanded: boolean
+}
+
+interface GetOpenEmailResult {
+  success: boolean
+  email?: OpenEmailInfo
+  error?: string
+}
+
 function sendAndWait<T>(
   view: BrowserView,
   channel: string,
@@ -115,6 +133,27 @@ export async function getVisibleEmails(): Promise<GetVisibleResult> {
       view,
       'gmail:get-visible',
       'gmail:get-visible-result',
+      undefined
+    )
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+export async function getOpenEmail(): Promise<GetOpenEmailResult> {
+  const view = getGmailView()
+  if (!view) {
+    return { success: false, error: 'Gmail view not available' }
+  }
+
+  try {
+    return await sendAndWait<GetOpenEmailResult>(
+      view,
+      'gmail:get-open-email',
+      'gmail:get-open-email-result',
       undefined
     )
   } catch (error) {

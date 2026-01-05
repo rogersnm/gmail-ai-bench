@@ -453,6 +453,199 @@ async function handleGetVisibleEmails(): Promise<{ success: boolean; emails?: Em
   return { success: true, emails }
 }
 
+interface OpenEmailInfo {
+  threadId: string | null
+  messageId: string | null
+  subject: string
+  from: string
+  to: string
+  cc: string
+  date: string
+  body: string
+  isExpanded: boolean
+}
+
+interface GetOpenEmailResult {
+  success: boolean
+  email?: OpenEmailInfo
+  error?: string
+}
+
+async function handleGetOpenEmail(): Promise<GetOpenEmailResult> {
+  // Gmail shows open emails in an expanded view
+  // The message container has class "adn ads" and data-message-id attribute
+
+  // Find the expanded message container
+  const messageContainer = document.querySelector('.adn.ads[data-message-id]') as HTMLElement | null
+
+  if (!messageContainer) {
+    return { success: false, error: 'No email is currently open. Click on an email to open it first.' }
+  }
+
+  let messageId: string | null = null
+  let threadId: string | null = null
+  let subject = ''
+  let from = ''
+  let to = ''
+  let cc = ''
+  let date = ''
+  let body = ''
+
+  // Get message ID from the container's data-message-id attribute
+  // Format: "#msg-f:1853483403047813339" - extract and convert to hex
+  const msgIdAttr = messageContainer.getAttribute('data-message-id')
+  if (msgIdAttr) {
+    const match = msgIdAttr.match(/#msg-[a-z]:(\d+)/)
+    if (match) {
+      messageId = BigInt(match[1]).toString(16)
+    }
+  }
+  // Fallback to legacy message ID if available
+  if (!messageId) {
+    messageId = messageContainer.getAttribute('data-legacy-message-id')
+  }
+
+  // Get thread ID from the subject header element
+  const subjectEl = document.querySelector('h2.hP[data-thread-perm-id]') as HTMLElement | null
+  if (subjectEl) {
+    subject = subjectEl.textContent?.trim() || ''
+    // Extract thread ID from data-thread-perm-id (format: "thread-f:123456")
+    const threadAttr = subjectEl.getAttribute('data-thread-perm-id')
+    if (threadAttr) {
+      const match = threadAttr.match(/thread-[a-z]:(\d+)/)
+      if (match) {
+        threadId = BigInt(match[1]).toString(16)
+      }
+    }
+    // Fallback to legacy thread ID
+    if (!threadId) {
+      threadId = subjectEl.getAttribute('data-legacy-thread-id')
+    }
+  }
+
+  // Fallback: get thread ID from URL
+  if (!threadId) {
+    const urlMatch = window.location.hash.match(/#(?:inbox|sent|all|starred|drafts|label\/[^/]+|search\/[^/]+)\/([a-zA-Z0-9]+)/)
+    if (urlMatch) {
+      threadId = urlMatch[1]
+    }
+  }
+
+  // Click "Show details" to expand the header and reveal CC info
+  // The details button has aria-label="Show details"
+  const showDetailsButton = messageContainer.querySelector('[aria-label="Show details"]') as HTMLElement | null
+  let detailsExpanded = false
+  if (showDetailsButton) {
+    simulateClick(showDetailsButton)
+    // Wait a bit for the details panel to appear
+    await new Promise(resolve => setTimeout(resolve, 300))
+    detailsExpanded = true
+  }
+
+  // Now try to get info from the expanded details panel
+  // The expanded panel contains table rows with class "ajv"
+  // Label cell: td.gG > span.gI (e.g., "cc:")
+  // Value cell: td.gL > span.gI or td.gL span[email]
+  const detailRows = messageContainer.querySelectorAll('tr.ajv')
+
+  for (const row of detailRows) {
+    const labelCell = row.querySelector('td.gG')
+    const valueCell = row.querySelector('td.gL')
+    if (!labelCell || !valueCell) continue
+
+    const label = labelCell.textContent?.trim().toLowerCase().replace(':', '') || ''
+
+    if (label === 'from') {
+      // Get email from span with email attribute
+      const emailSpan = valueCell.querySelector('span[email]')
+      from = emailSpan?.getAttribute('email') || valueCell.textContent?.trim() || ''
+    } else if (label === 'to') {
+      const emailSpans = valueCell.querySelectorAll('span[email]')
+      if (emailSpans.length > 0) {
+        to = Array.from(emailSpans)
+          .map(el => el.getAttribute('email'))
+          .filter(Boolean)
+          .join(', ')
+      } else {
+        to = valueCell.textContent?.trim() || ''
+      }
+    } else if (label === 'cc') {
+      const emailSpans = valueCell.querySelectorAll('span[email]')
+      if (emailSpans.length > 0) {
+        cc = Array.from(emailSpans)
+          .map(el => el.getAttribute('email'))
+          .filter(Boolean)
+          .join(', ')
+      } else {
+        cc = valueCell.textContent?.trim() || ''
+      }
+    } else if (label === 'date') {
+      date = valueCell.textContent?.trim() || ''
+    }
+  }
+
+  // Fallback: get sender from header if not found in details
+  if (!from) {
+    const fromEl = messageContainer.querySelector('span.gD[email]') as HTMLElement | null
+    if (fromEl) {
+      from = fromEl.getAttribute('email') || ''
+    }
+  }
+
+  // Fallback: get recipients from header if not found in details
+  if (!to) {
+    const toElements = messageContainer.querySelectorAll('span.g2[email]')
+    if (toElements.length > 0) {
+      to = Array.from(toElements)
+        .map(el => el.getAttribute('email'))
+        .filter(Boolean)
+        .join(', ')
+    }
+  }
+
+  // Fallback: get date from header if not found in details
+  if (!date) {
+    const dateEl = messageContainer.querySelector('span.g3[title]') as HTMLElement | null
+    if (dateEl) {
+      date = dateEl.getAttribute('title') || ''
+    }
+  }
+
+  // Close the details panel if we opened it
+  if (detailsExpanded) {
+    const hideDetailsButton = messageContainer.querySelector('[aria-label="Hide details"]') as HTMLElement | null
+    if (hideDetailsButton) {
+      simulateClick(hideDetailsButton)
+    }
+  }
+
+  // Get body content - the message body is in div with class "a3s aiL"
+  const bodyEl = messageContainer.querySelector('.a3s.aiL') as HTMLElement | null
+  if (bodyEl) {
+    body = bodyEl.textContent?.trim() || ''
+  }
+
+  // If we don't have essential info, email may not be fully loaded
+  if (!subject && !body && !from) {
+    return { success: false, error: 'Email content not fully loaded. Please wait for the email to finish loading.' }
+  }
+
+  return {
+    success: true,
+    email: {
+      threadId,
+      messageId,
+      subject,
+      from,
+      to,
+      cc,
+      date,
+      body,
+      isExpanded: true,
+    }
+  }
+}
+
 // Expose API to main process via IPC
 ipcRenderer.on('gmail:select-emails', async (_event, params: SelectEmailsParams) => {
   const result = await handleSelectEmails(params)
@@ -469,9 +662,15 @@ ipcRenderer.on('gmail:get-visible', async () => {
   ipcRenderer.send('gmail:get-visible-result', result)
 })
 
+ipcRenderer.on('gmail:get-open-email', async () => {
+  const result = await handleGetOpenEmail()
+  ipcRenderer.send('gmail:get-open-email-result', result)
+})
+
 // Also expose via contextBridge for potential direct use
 contextBridge.exposeInMainWorld('gmailTools', {
   selectEmails: handleSelectEmails,
   bulkAction: handleBulkAction,
   getVisibleEmails: handleGetVisibleEmails,
+  getOpenEmail: handleGetOpenEmail,
 })

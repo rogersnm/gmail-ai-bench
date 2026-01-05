@@ -72,4 +72,6 @@ export const IPC_CHANNELS = {
   GMAIL_BULK_ACTION_RESULT: 'gmail:bulk-action-result',
   GMAIL_GET_VISIBLE: 'gmail:get-visible',
   GMAIL_GET_VISIBLE_RESULT: 'gmail:get-visible-result',
+  GMAIL_GET_OPEN_EMAIL: 'gmail:get-open-email',
+  GMAIL_GET_OPEN_EMAIL_RESULT: 'gmail:get-open-email-result',
 } as const

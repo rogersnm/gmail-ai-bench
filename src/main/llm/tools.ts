@@ -275,4 +275,13 @@ export const gmailTools: ToolDefinition[] = [
       required: ['action'],
     },
   },
+  {
+    name: 'get_open_email',
+    description:
+      'Get the content of the currently open/viewed email from the Gmail UI. Use this when the user refers to "this email" or "the current email". Returns thread_id, message_id, subject, from, to, cc, date, and body text.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ]
