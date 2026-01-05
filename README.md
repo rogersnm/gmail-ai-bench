@@ -44,7 +44,7 @@ npm install
 
 ```bash
 export BEDROCK_REGION=eu-south-2
-export BEDROCK_MODEL=eu.anthropic.claude-opus-4-5-20251101-v1:0
+export BEDROCK_MODEL=eu.anthropic.claude-sonnet-4-5-20250929-v1:0
 ```
 
 ### 4. Run the App
@@ -116,7 +116,7 @@ Environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BEDROCK_REGION` | `eu-south-2` | AWS region for Bedrock |
-| `BEDROCK_MODEL` | `eu.anthropic.claude-opus-4-5-20251101-v1:0` | Claude model ID |
+| `BEDROCK_MODEL` | `eu.anthropic.claude-sonnet-4-5-20250929-v1:0` | Claude model ID |
 | `AWS_PROFILE` | `default` | AWS credentials profile |
 
 ## License

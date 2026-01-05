@@ -9,7 +9,7 @@ import {
 import { gmailTools } from './tools'
 
 // Bedrock configuration - override via environment variables
-const MODEL_ID = process.env.BEDROCK_MODEL || 'eu.anthropic.claude-opus-4-5-20251101-v1:0'
+const MODEL_ID = process.env.BEDROCK_MODEL || 'eu.anthropic.claude-sonnet-4-5-20250929-v1:0'
 const BEDROCK_REGION = process.env.BEDROCK_REGION || 'eu-south-2'
 
 let client: BedrockRuntimeClient | null = null

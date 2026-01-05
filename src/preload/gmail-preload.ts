@@ -158,22 +158,104 @@ function clickToolbarButton(action: string): boolean {
   }
 
   const labels = ariaLabelMap[action]
-  if (!labels) return false
+  if (!labels) {
+    console.error(`[gmail-preload] Unknown bulk action: ${action}`)
+    return false
+  }
+
+  // Gmail toolbar is typically within div[role="toolbar"] or the main header area
+  // We want to click buttons in the toolbar, not random elements with matching aria-label
+  const toolbarSelectors = [
+    '[role="toolbar"]',
+    '[gh="mtb"]', // Gmail's main toolbar marker
+    '.G-atb', // Gmail toolbar class
+    'header',
+  ]
 
   for (const label of labels) {
-    // Try exact match first
-    let button = document.querySelector(`[aria-label="${label}"]`)
-    // Try contains match
-    if (!button) {
-      button = document.querySelector(`[aria-label*="${label}"]`)
+    // First try to find the button within a toolbar context
+    for (const toolbarSelector of toolbarSelectors) {
+      const toolbar = document.querySelector(toolbarSelector)
+      if (toolbar) {
+        // Try exact match within toolbar
+        let button = toolbar.querySelector(`[aria-label="${label}"]`)
+        if (!button) {
+          // Try case-insensitive match
+          button = toolbar.querySelector(`[aria-label="${label}" i]`)
+        }
+        if (button instanceof HTMLElement) {
+          console.log(`[gmail-preload] Found button "${label}" in ${toolbarSelector}`)
+          simulateClick(button)
+          return true
+        }
+      }
     }
-    if (button instanceof HTMLElement) {
-      button.click()
-      return true
+
+    // Fallback: search globally but only for visible, enabled buttons
+    const buttons = document.querySelectorAll(`[aria-label="${label}"], [aria-label*="${label}"]`)
+    for (const button of buttons) {
+      if (button instanceof HTMLElement && isClickableButton(button)) {
+        console.log(`[gmail-preload] Found button "${label}" globally`)
+        simulateClick(button)
+        return true
+      }
     }
   }
 
+  console.error(`[gmail-preload] Could not find toolbar button for action: ${action}`)
+  console.log(`[gmail-preload] Tried labels: ${labels.join(', ')}`)
   return false
+}
+
+function isClickableButton(element: HTMLElement): boolean {
+  // Check if the element is visible and not disabled
+  const style = window.getComputedStyle(element)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+    return false
+  }
+  if (element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true') {
+    return false
+  }
+  // Check if element has reasonable dimensions
+  const rect = element.getBoundingClientRect()
+  if (rect.width === 0 || rect.height === 0) {
+    return false
+  }
+  return true
+}
+
+function simulateClick(element: HTMLElement): void {
+  // Some Gmail buttons need proper mouse events, not just click()
+  const rect = element.getBoundingClientRect()
+  const x = rect.left + rect.width / 2
+  const y = rect.top + rect.height / 2
+
+  // Dispatch a full sequence of mouse events
+  const mousedownEvent = new MouseEvent('mousedown', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: x,
+    clientY: y,
+  })
+  const mouseupEvent = new MouseEvent('mouseup', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: x,
+    clientY: y,
+  })
+  const clickEvent = new MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: x,
+    clientY: y,
+  })
+
+  element.dispatchEvent(mousedownEvent)
+  element.dispatchEvent(mouseupEvent)
+  element.dispatchEvent(clickEvent)
 }
 
 // IPC handlers for main process communication
@@ -323,7 +405,41 @@ async function handleBulkAction(action: string): Promise<BulkActionResult> {
     }
   }
 
+  // Handle confirmation dialogs that may appear after certain actions
+  if (action === 'spam') {
+    // Wait a moment for the "Block sender?" dialog to appear, then auto-confirm
+    await handleSpamBlockDialog()
+  }
+
   return { success: true }
+}
+
+async function handleSpamBlockDialog(): Promise<void> {
+  // Wait for the spam block confirmation dialog to appear
+  // Dialog has role="alertdialog" and contains "Yes, block" button with data-mdc-dialog-action="blockSender"
+  const maxWait = 2000
+  const pollInterval = 100
+  let elapsed = 0
+
+  while (elapsed < maxWait) {
+    // Look for the dialog
+    const dialog = document.querySelector('[role="alertdialog"]')
+    if (dialog) {
+      // Find and click the "Yes, block" button
+      const blockButton = dialog.querySelector('[data-mdc-dialog-action="blockSender"]')
+      if (blockButton instanceof HTMLElement) {
+        console.log('[gmail-preload] Found spam block dialog, clicking "Yes, block"')
+        simulateClick(blockButton)
+        return
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollInterval))
+    elapsed += pollInterval
+  }
+
+  // Dialog didn't appear - that's fine, spam was still reported
+  console.log('[gmail-preload] No spam block dialog appeared (this is normal for some cases)')
 }
 
 async function handleGetVisibleEmails(): Promise<{ success: boolean; emails?: EmailInfo[]; error?: string }> {
