@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { join } from 'path'
 import { createGmailView, resizeGmailView, getGmailView } from './gmail-view'
 import { setupGmailHandlers } from './gmail/gmail-client'
-import { setupBedrockHandlers } from './llm/executor'
+import { setupVertexHandlers } from './llm/executor'
 import { setupPromptsStore } from './storage/prompts-store'
 
 let mainWindow: BrowserWindow | null = null
@@ -44,7 +44,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set up IPC handlers
   setupGmailHandlers(ipcMain)
-  setupBedrockHandlers(ipcMain)
+  setupVertexHandlers(ipcMain)
   setupPromptsStore(ipcMain)
 
   // Set up application menu with Cmd+R to refresh Gmail

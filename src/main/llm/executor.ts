@@ -1,11 +1,10 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import {
-  sendMessage,
+  sendMessageStream,
   createToolResultsMessage,
-  ConversationMessage,
-  ResponseBlock,
   ToolUseBlock,
-} from './bedrock-client'
+} from './vertex-client'
+import type { ContentBlock } from '@anthropic-ai/vertex-sdk/resources/messages'
 import {
   listEmails,
   getEmail,
@@ -129,52 +128,88 @@ async function runPromptExecution(
     ...existingHistory,
     {
       role: 'user',
-      content: [{ text: prompt }],
+      content: [{ type: 'text', text: prompt }],
     },
   ]
 
   // Agentic loop - continue until model stops requesting tools
   while (!abortSignal.aborted) {
-    const response = await sendMessage(messages)
+    const stream = sendMessageStream(messages)
 
-    // Process response content - convert to Bedrock's ContentBlock format
-    const assistantContent: Array<{ text: string } | { toolUse: { toolUseId: string; name: string; input: Record<string, unknown> } }> = []
+    // Track content blocks as they stream in
+    const assistantContent: ContentBlock[] = []
     const toolUses: ToolUseBlock[] = []
+    let currentTextContent = ''
+    let currentToolUse: { id: string; name: string; input: string } | null = null
 
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        assistantContent.push({ text: block.text })
-        sendUpdate(window, {
-          type: 'response',
-          content: block.text,
-          timestamp: Date.now(),
-        })
-      } else if (block.type === 'tool_use') {
-        assistantContent.push({
-          toolUse: {
-            toolUseId: block.id,
-            name: block.name,
-            input: block.input,
-          },
-        })
-        toolUses.push(block)
-        sendUpdate(window, {
-          type: 'tool_call',
-          content: `Calling ${block.name}`,
-          toolCall: { name: block.name, input: block.input },
-          timestamp: Date.now(),
-        })
+    // Process streaming events
+    for await (const event of stream) {
+      if (abortSignal.aborted) break
+
+      if (event.type === 'content_block_start') {
+        if (event.content_block.type === 'text') {
+          currentTextContent = ''
+        } else if (event.content_block.type === 'tool_use') {
+          currentToolUse = {
+            id: event.content_block.id,
+            name: event.content_block.name,
+            input: '',
+          }
+        }
+      } else if (event.type === 'content_block_delta') {
+        if (event.delta.type === 'text_delta') {
+          currentTextContent += event.delta.text
+          // Stream text to UI in real-time
+          sendUpdate(window, {
+            type: 'response',
+            content: event.delta.text,
+            timestamp: Date.now(),
+          })
+        } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
+          currentToolUse.input += event.delta.partial_json
+        }
+      } else if (event.type === 'content_block_stop') {
+        if (currentTextContent) {
+          assistantContent.push({ type: 'text', text: currentTextContent })
+          currentTextContent = ''
+        }
+        if (currentToolUse) {
+          const parsedInput = JSON.parse(currentToolUse.input || '{}')
+          const toolUseBlock: ToolUseBlock = {
+            type: 'tool_use',
+            id: currentToolUse.id,
+            name: currentToolUse.name,
+            input: parsedInput,
+          }
+          assistantContent.push({
+            type: 'tool_use',
+            id: currentToolUse.id,
+            name: currentToolUse.name,
+            input: parsedInput,
+          })
+          toolUses.push(toolUseBlock)
+          sendUpdate(window, {
+            type: 'tool_call',
+            content: `Calling ${currentToolUse.name}`,
+            toolCall: { name: currentToolUse.name, input: parsedInput },
+            timestamp: Date.now(),
+          })
+          currentToolUse = null
+        }
       }
     }
+
+    // Get the final message to check stop reason
+    const finalMessage = await stream.finalMessage()
 
     // Add assistant message to conversation
     messages.push({
       role: 'assistant',
-      content: assistantContent as any,
+      content: assistantContent,
     })
 
     // If no tool uses, we're done
-    if (toolUses.length === 0 || response.stopReason === 'end_turn') {
+    if (toolUses.length === 0 || finalMessage.stop_reason === 'end_turn') {
       return messages
     }
 
@@ -214,7 +249,7 @@ async function runPromptExecution(
   return messages
 }
 
-export function setupBedrockHandlers(ipcMain: IpcMain): void {
+export function setupVertexHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     IPC_CHANNELS.EXECUTE_PROMPT,
     async (event, prompt: string, history?: ConversationMessage[]) => {

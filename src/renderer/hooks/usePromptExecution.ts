@@ -12,7 +12,21 @@ export function usePromptExecution() {
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onExecutionUpdate((step) => {
-      setSteps((prev) => [...prev, step])
+      setSteps((prev) => {
+        // For streaming responses, append to the last response step if one exists
+        if (step.type === 'response') {
+          const lastStep = prev[prev.length - 1]
+          if (lastStep?.type === 'response') {
+            // Append to existing response step
+            return [
+              ...prev.slice(0, -1),
+              { ...lastStep, content: lastStep.content + step.content },
+            ]
+          }
+        }
+        // Otherwise add as new step
+        return [...prev, step]
+      })
     })
 
     return () => {

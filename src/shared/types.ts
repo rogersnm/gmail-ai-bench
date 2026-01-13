@@ -28,7 +28,7 @@ export interface ToolCall {
 // Conversation history for multi-turn conversations
 export interface ConversationMessage {
   role: 'user' | 'assistant'
-  content: unknown[] // ContentBlock array from Bedrock
+  content: unknown[] // ContentBlock array from Vertex
 }
 
 export interface ExecutionStep {
